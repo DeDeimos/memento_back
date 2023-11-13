@@ -1,5 +1,6 @@
 from rest_framework import serializers
 from .models import User, Moment, Comment, Like, Follow, Tag
+from api import models
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -51,6 +52,12 @@ class LikeSerializer(serializers.ModelSerializer):
     class Meta:
         model = Like
         fields = ('id', 'author', 'moment', 'comment', 'created_at')
+        # constraints = (
+        #     models.UniqueTogetherConstraint(
+        #         fields=('name', 'age'),
+        #         name='unique_person'
+        #     ),
+        # )
 
 class FollowSerializer(serializers.ModelSerializer):
     class Meta:

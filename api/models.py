@@ -48,6 +48,12 @@ class Like(models.Model):
 
     def __str__(self):
         return self.author.name + ' liked ' + self.moment.title
+    
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=['author', 'moment'], name='unique_like_moment'),
+            models.UniqueConstraint(fields=['author', 'comment'], name='unique_like_comment'),
+        ]
 
 class Follow(models.Model):
     follower = models.ForeignKey(User, on_delete=models.CASCADE, related_name='follower')
