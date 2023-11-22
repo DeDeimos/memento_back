@@ -5,6 +5,11 @@ from rest_framework.response import Response
 from rest_framework import status
 from .models import User, Moment, Comment, Like, Follow, Tag
 from .serializers import UserFollowingMomentSerializer, UserLoginSerializer, UserRegisterSerializer, UserSerializer, MomentSerializer, CommentSerializer, LikeSerializer, FollowSerializer, TagSerializer
+from django.core.cache import cache
+from django.conf import settings
+from django.core.cache.backends.base import DEFAULT_TIMEOUT
+
+CACHE_TTL = getattr(settings, 'CACHE_TTL', DEFAULT_TIMEOUT)
 
 # Create your views here.
 #User
