@@ -35,6 +35,10 @@ class MinioStorage(Storage):
         return self.client.presigned_get_object(self.bucket_name, name)
     
     def exists(self, name: str) -> bool:
-        return self.client.bucket_exists(self.bucket_name)
-        
-    
+        try:
+            self.client.stat_object(self.bucket_name, name)
+            return True
+        except S3Error as e:
+            if e.code == "NoSuchKey":
+                return False
+            raise
