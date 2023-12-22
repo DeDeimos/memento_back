@@ -27,7 +27,7 @@ SECRET_KEY = 'django-insecure-cqk(*_yoj*kkx)it1z9a(gm^qz_^j&r(vx^&$aear%ucypukgi
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ["185.204.2.233"]
 
 
 # Application definition
@@ -41,7 +41,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'api.apps.ApiConfig',
     'rest_framework',
-    'corsheaders'
+    'corsheaders',
 ]
 
 MIDDLEWARE = [
@@ -102,6 +102,16 @@ DATABASES = {
     }
 }
 
+CACHES = {
+    'default': {
+        "BACKEND": "django.core.cache.backends.memcached.PyMemcacheCache",
+        'LOCATION': '127.0.0.1:11211',  # Тут надо будет поменять
+    }
+}
+
+# Устанавливаем время жизни кеша (в секундах)
+CACHE_TTL = 60 * 15  # Например, 15 минут
+
 
 # Password validation
 # https://docs.djangoproject.com/en/4.2/ref/settings/#auth-password-validators
@@ -133,6 +143,11 @@ USE_I18N = True
 
 USE_TZ = True
 
+MINIO_ENDPOINT = 'minio:9000'  # ТУТ ИЗМЕНИТЬ
+MINIO_ACCESS_KEY = '123456789'
+MINIO_SECRET_KEY = '987654321'
+MINIO_SECURE = False  # использовать SSL (HTTPS) или нет
+MINIO_BUCKET_NAME = 'memento'
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/4.2/howto/static-files/

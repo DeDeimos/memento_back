@@ -1,33 +1,39 @@
 from django.db import models
 from django.contrib.auth.hashers import check_password
+from memento_back.minio_storage import MinioStorage
 
 # Create your models here.
+
+minio_storage = MinioStorage
 
 class User(models.Model):
     name = models.CharField(max_length=100, unique=True)
     email = models.EmailField(max_length=100, unique=True)
     password = models.CharField(max_length=100)
-    profilephoto = models.ImageField(upload_to='profilephoto', blank=True)
+    profilephoto = models.ImageField(upload_to='profilephoto', blank=True, storage=minio_storage)
     created_at = models.DateTimeField(auto_now_add=True)
     rating = models.IntegerField(default=50)
 
     def __str__(self):
         return self.name
+
     def check_password(self, password):
         print("compare")
         print(self.password)
         print(password)
         return self.password == password
-    
+
 class Moment(models.Model):
     author = models.ForeignKey(User, on_delete=models.CASCADE)
-    title = models.CharField(max_length=100)
+    # title = models.CharField(max_length=100)
     description = models.TextField()
-    image = models.ImageField(upload_to='moments')
+    image = models.ImageField(upload_to='moments', storage=minio_storage)
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return self.title
+        return self.description
+    
+    
     
 class Comment(models.Model):
     author = models.ForeignKey(User, on_delete=models.CASCADE)

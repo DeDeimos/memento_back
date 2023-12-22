@@ -69,3 +69,22 @@ class TagSerializer(serializers.ModelSerializer):
         model = Tag
         fields = ('id', 'name', 'moment')
 
+class MomentStatisticSerializer(serializers.ModelSerializer):
+    like_count = serializers.IntegerField()
+    recent_comments = serializers.ListField(child=serializers.CharField(), required=False)
+
+    class Meta:
+        model = Moment
+        fields = ['id', 'title', 'like_count', 'recent_comments']
+        
+class UserFollowingMomentSerializer(serializers.ModelSerializer):
+    author_info = UserSerializer(source='author', read_only=True)
+    has_like = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Moment
+        fields = ('id', 'author_info', 'description', 'image', 'created_at', 'has_like')
+
+    def get_has_like(self, obj):
+        user_id = self.context.get('user_id')
+        return Like.objects.filter(author_id=user_id, moment_id=obj.id).exists()

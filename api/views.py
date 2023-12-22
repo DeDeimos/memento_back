@@ -1,10 +1,15 @@
 from django.shortcuts import render
 from rest_framework import generics
+from rest_framework import status
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
+from django.utils.decorators import method_decorator
+from django.core.cache import cache
+from django.views.decorators.cache import cache_page
+from django.db.models import Count, Subquery, OuterRef
 from .models import User, Moment, Comment, Like, Follow, Tag
-from .serializers import UserFollowingMomentSerializer, UserLoginSerializer, UserRegisterSerializer, UserSerializer, MomentSerializer, CommentSerializer, LikeSerializer, FollowSerializer, TagSerializer
+from .serializers import UserFollowingMomentSerializer, UserFollowingMomentSerializer, MomentStatisticSerializer, UserLoginSerializer, UserRegisterSerializer, UserSerializer, MomentSerializer, CommentSerializer, LikeSerializer, FollowSerializer, TagSerializer
 
 # Create your views here.
 #User
@@ -74,6 +79,46 @@ class MomentByUser(generics.ListAPIView):
         user_id = self.kwargs['pk']
         return queryset.filter(author=user_id) 
 
+class MomentStatistic(APIView):
+    def get(self, request, *args, **kwargs):
+        moments = Moment.objects.all()
+
+        # Получение данных о статистике для каждого момента
+        data = []
+        for moment in moments:
+            like_count = Like.objects.filter(moment=moment).count()
+            recent_comments = Comment.objects.filter(moment=moment).order_by('-created_at').values_list('text', flat=True)[:2]
+
+            moment_data = {
+                'id': moment.id,
+                'like_count': like_count,
+                'recent_comments': list(recent_comments),
+            }
+
+            data.append(moment_data)
+
+        return Response(data)
+
+# Взять 20 самых популярных моментов по рейтингу пользователей чтобы потом их закешировать используя memcached
+@method_decorator(cache_page(60 * 15, key_prefix='popular_moments'), name='get')
+class MomentPopular(generics.ListAPIView):
+    queryset = Moment.objects.all()[:20]
+    serializer_class = MomentSerializer
+    
+    @method_decorator(cache_page(60 * 15, key_prefix='popular_moments'), name='get')
+    def get(self, request, *args, **kwargs):
+        return super().get(request, *args, **kwargs)
+
+    def update_cache(self):
+        # Очищаем кэш по ключу
+        cache.delete('popular_moments')
+
+    def perform_update(self, serializer):
+        # Выполняем обновление объекта в базе данных
+        instance = serializer.save()
+        # Вызываем метод обновления кэша
+        self.update_cache()
+
 #Comment
 class CommentView(generics.ListAPIView):
     queryset = Comment.objects.all()
@@ -111,6 +156,30 @@ class LikeEdit(generics.RetrieveUpdateAPIView):
 class LikeDelete(generics.DestroyAPIView):
     queryset = Like.objects.all()
     serializer_class = LikeSerializer
+
+    def get_object(self):
+        author_id = self.kwargs.get('id_author')
+        moment_id = self.kwargs.get('id_moment')
+        comment_id = self.kwargs.get('id_comment')
+        like_type = self.request.data.get('type')
+
+        if like_type == 'moment':
+            obj = Like.objects.filter(author_id=author_id, moment_id=moment_id).first()
+        elif like_type == 'comment':
+            obj = Like.objects.filter(author_id=author_id, comment_id=comment_id).first()
+        else:
+            obj = None
+
+        if obj is None:
+            raise generics.NotFound("Like not found")
+
+        return obj
+
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        self.perform_destroy(instance)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
 
 class LikeDetail(generics.RetrieveAPIView):
     queryset = Like.objects.all()
@@ -153,15 +222,28 @@ class UserFollowed(generics.ListAPIView):
         user_id = self.kwargs['pk']
         return queryset.filter(following=user_id)
 
+# class UserFollowingMoments(generics.ListAPIView):
+#     serializer_class = UserFollowingMomentSerializer
+
+#     def get_queryset(self):
+#         user_id = self.kwargs['pk']
+#         following_users = Follow.objects.filter(follower=user_id).values('following')
+#         queryset = Moment.objects.filter(author__in=following_users)
+#         return queryset[::-1]
+
 class UserFollowingMoments(generics.ListAPIView):
     serializer_class = UserFollowingMomentSerializer
 
     def get_queryset(self):
         user_id = self.kwargs['pk']
         following_users = Follow.objects.filter(follower=user_id).values('following')
-        queryset = Moment.objects.filter(author__in=following_users)
-        return queryset[::-1]
+        moments = Moment.objects.filter(author__in=following_users).order_by('-created_at')
 
+        return moments
+
+    def get_serializer_context(self):
+        # Передайте user_id в контексте сериализатора
+        return {'user_id': self.kwargs['pk']}
 
 #Tag
 class TagView(generics.ListAPIView):

@@ -1,5 +1,6 @@
 from django.urls import path
-from .views import MomentByUser, UserFollow, UserFollowed, UserFollowingMoments, UserLogin, UserView, UserCreate, UserEdit, UserDelete, UserDetail, MomentView, MomentCreate, MomentEdit, MomentDelete, MomentDetail, CommentView, CommentCreate, CommentEdit, CommentDelete, CommentDetail, LikeView, LikeCreate, LikeEdit, LikeDelete, LikeDetail, FollowView, FollowCreate, FollowEdit, FollowDelete, FollowDetail, TagView, TagCreate, TagEdit, TagDelete, TagDetail
+from django.views.decorators.cache import cache_page
+from .views import MomentByUser, MomentStatistic, MomentPopular, UserFollow, UserFollowed, UserFollowingMoments, UserLogin, UserView, UserCreate, UserEdit, UserDelete, UserDetail, MomentView, MomentCreate, MomentEdit, MomentDelete, MomentDetail, CommentView, CommentCreate, CommentEdit, CommentDelete, CommentDetail, LikeView, LikeCreate, LikeEdit, LikeDelete, LikeDetail, FollowView, FollowCreate, FollowEdit, FollowDelete, FollowDetail, TagView, TagCreate, TagEdit, TagDelete, TagDetail
 urlpatterns = [
     path('users/', UserView.as_view()),
     path('users/create', UserCreate.as_view()),
@@ -17,6 +18,8 @@ urlpatterns = [
     path('moments/delete/<int:pk>/', MomentDelete.as_view()),
     path('moments/<int:pk>/', MomentDetail.as_view()),
     path('moments/byuser/<int:pk>/', MomentByUser.as_view()),
+    path('moments/statistic/<int:pk>/', MomentStatistic.as_view()),
+    path('moments/popular/', cache_page(60 * 15)(MomentPopular.as_view())),
 
     path('comments/', CommentView.as_view()),
     path('comments/create/', CommentCreate.as_view()),
@@ -28,7 +31,9 @@ urlpatterns = [
     path('likes/create/', LikeCreate.as_view()),
     path('likes/edit/<int:pk>/', LikeEdit.as_view()),
     path('likes/delete/<int:pk>/', LikeDelete.as_view()),
-    path('likes/<int:pk>/', LikeDetail.as_view()),
+    # path('likes/<int:pk>/', LikeDetail.as_view()),
+    path('like/delete/moment/<int:id_author>/<int:id_moment>/', LikeDelete.as_view(), name='like-delete-moment'),
+    path('like/delete/comment/<int:id_author>/<int:id_comment>/', LikeDelete.as_view(), name='like-delete-comment'),
 
     path('follows/', FollowView.as_view()),
     path('follows/create/', FollowCreate.as_view()),
