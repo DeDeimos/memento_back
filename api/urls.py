@@ -18,7 +18,7 @@ urlpatterns = [
     path('moments/delete/<int:pk>/', MomentDelete.as_view()),
     path('moments/<int:pk>/', MomentDetail.as_view()),
     path('moments/byuser/<int:pk>/', MomentByUser.as_view()),
-    path('moments/statistic/<int:pk>/', MomentStatistic.as_view()),
+    path('moments/statistic/<int:pk>/<int:user_id>/', MomentStatistic.as_view()),
     path('moments/popular/', cache_page(60 * 15)(MomentPopular.as_view())),
 
     path('comments/', CommentView.as_view()),

@@ -81,24 +81,45 @@ class MomentByUser(generics.ListAPIView):
 
 class MomentStatistic(APIView):
     def get(self, request, *args, **kwargs):
-        moments = Moment.objects.all()
+        user_id = self.kwargs.get('user_id')
+        user = User.objects.filter(pk=user_id).first()
 
-        # ѕолучение данных о статистике дл€ каждого момента
-        data = []
-        for moment in moments:
-            like_count = Like.objects.filter(moment=moment).count()
-            recent_comments = Comment.objects.filter(moment=moment).order_by('-created_at').values_list('text', flat=True)[:2]
+        if not user:
+            return Response({'error': 'User not found'}, status=404)
 
-            moment_data = {
-                'id': moment.id,
-                'like_count': like_count,
-                'recent_comments': list(recent_comments),
-            }
+        moment_id = self.kwargs.get('pk')
+        moment = Moment.objects.filter(pk=moment_id).first()
 
-            data.append(moment_data)
+        if not moment:
+            return Response({'error': 'Moment not found'}, status=404)
+
+        # ѕолучение данных о статистике дл€ конкретного момента
+        like_count = Like.objects.filter(moment=moment).count()
+        recent_comments = Comment.objects.filter(moment=moment).order_by('-created_at')[:2]
+
+        comment_data = []
+        for comment in recent_comments:
+            has_user_liked = Like.objects.filter(moment=moment, author=user, comment=comment).exists()
+
+            comment_data.append({
+                'id': comment.id,
+                'text': comment.text,
+                'created_at': comment.created_at,
+                'author': {
+                    'id': comment.author.id,
+                    'name': comment.author.name,  # »м€ пользовател€ или другое поле
+                    # ƒобавьте другие пол€ пользовател€, которые вам нужны
+                },
+                'has_user_liked': has_user_liked,
+            })
+
+        data = {
+            'like_count': like_count,
+            'recent_comments': comment_data,
+        }
 
         return Response(data)
-
+    
 # ¬з€ть 20 самых попул€рных моментов по рейтингу пользователей чтобы потом их закешировать использу€ memcached
 @method_decorator(cache_page(60 * 15, key_prefix='popular_moments'), name='get')
 class MomentPopular(generics.ListAPIView):

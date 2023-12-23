@@ -38,18 +38,6 @@ services:
       - "9999:9000"
     volumes:
       - ./minio-data:/data
-  minio-client:
-    image: quay.io/minio/mc:RELEASE.2023-12-20T07-14-22Z-cpuv1
-    entrypoint: >
-      /bin/sh -c "
-      /usr/bin/mc config host rm expo;
-      /usr/bin/mc config host add --quiet --api s3v4 local http://minio:9000 123456789 987654321;
-      /usr/bin/mc rb --force local/memento/;
-      /usr/bin/mc mb --quiet local/memento/;
-      /usr/bin/mc policy set public local/memento;
-      "
-    depends_on:
-      - minio
   front:
     build: ../memento_front
     ports:
