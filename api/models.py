@@ -22,6 +22,17 @@ class User(models.Model):
         print(self.password)
         print(password)
         return self.password == password
+    
+    def set_password(self, password):
+        self.password = password
+        self.save()
+        return self.password
+    
+    def set_name_email(self, name, email):
+        self.name = name
+        self.email = email
+        self.save()
+        return self.name, self.email
 
 class Moment(models.Model):
     author = models.ForeignKey(User, on_delete=models.CASCADE)

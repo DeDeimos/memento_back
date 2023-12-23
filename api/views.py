@@ -7,6 +7,8 @@ from rest_framework import status
 from django.utils.decorators import method_decorator
 from django.core.cache import cache
 from django.views.decorators.cache import cache_page
+from django.shortcuts import get_object_or_404
+from django.db import IntegrityError
 from django.db.models import Count, Subquery, OuterRef
 from .models import User, Moment, Comment, Like, Follow, Tag
 from .serializers import UserFollowingMomentSerializer, UserFollowingMomentSerializer, MomentStatisticSerializer, UserLoginSerializer, UserRegisterSerializer, UserSerializer, MomentSerializer, CommentSerializer, LikeSerializer, FollowSerializer, TagSerializer
@@ -49,6 +51,50 @@ class UserLogin(APIView):
                 return Response({'message': 'РќРµРїСЂР°РІРёР»СЊРЅС‹Рµ СѓС‡РµС‚РЅС‹Рµ РґР°РЅРЅС‹Рµ'}, status=status.HTTP_401_UNAUTHORIZED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+class UserChangePassword(APIView):
+    def post(self, request, *args, **kwargs):
+        user_id = self.kwargs.get('pk')
+        new_password = self.request.data.get('new_password')
+
+        # РџСЂРѕРІРµСЂРєР°, С‡С‚Рѕ user_id Рё new_password РїРµСЂРµРґР°РЅС‹
+        if not user_id or not new_password:
+            return Response({'error': 'User ID and new password are required.'}, status=400)
+
+        user = get_object_or_404(User, pk=user_id)
+
+        # РР·РјРµРЅРµРЅРёРµ РїР°СЂРѕР»СЏ
+        user.set_password(new_password)
+        user.save()
+
+        return Response({'message': 'Password changed successfully.'})
+    
+class UserChangeNameandEmail(APIView):
+    def post(self, request, *args, **kwargs):
+        user_id = self.kwargs.get('pk')
+        new_name = self.request.data.get('new_name')
+        new_email = self.request.data.get('new_email')
+
+        # РџСЂРѕРІРµСЂРєР°, С‡С‚Рѕ user_id, new_name Рё new_email РїРµСЂРµРґР°РЅС‹
+        if not user_id or not new_name or not new_email:
+            return Response({'error': 'User ID, new name, and new email are required.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            user = get_object_or_404(User, pk=user_id)
+            user.set_name_email(new_name, new_email)
+            return Response({'message': 'Name and email changed successfully.'})
+        except IntegrityError as e:
+            error_message = str(e)
+            if 'unique constraint' in error_message.lower():
+                if 'email' in error_message.lower():
+                    return Response({'error': 'Email is not unique.'}, status=status.HTTP_400_BAD_REQUEST)
+                elif 'name' in error_message.lower():
+                    return Response({'error': 'Name is not unique.'}, status=status.HTTP_400_BAD_REQUEST)
+
+            return Response({'error': 'An unexpected error occurred.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        except User.DoesNotExist:
+            return Response({'error': 'User not found.'}, status=status.HTTP_404_NOT_FOUND)
+        except Exception:
+            return Response({'error': 'An unexpected error occurred.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 #Moment
 class MomentView(generics.ListAPIView):
@@ -93,13 +139,12 @@ class MomentStatistic(APIView):
         if not moment:
             return Response({'error': 'Moment not found'}, status=404)
 
-        # Получение данных о статистике для конкретного момента
         like_count = Like.objects.filter(moment=moment).count()
         recent_comments = Comment.objects.filter(moment=moment).order_by('-created_at')[:2]
 
         comment_data = []
         for comment in recent_comments:
-            has_user_liked = Like.objects.filter(moment=moment, author=user, comment=comment).exists()
+            has_user_liked = Like.objects.filter(author=user, comment=comment).exists()
 
             comment_data.append({
                 'id': comment.id,
@@ -107,8 +152,7 @@ class MomentStatistic(APIView):
                 'created_at': comment.created_at,
                 'author': {
                     'id': comment.author.id,
-                    'name': comment.author.name,  # Имя пользователя или другое поле
-                    # Добавьте другие поля пользователя, которые вам нужны
+                    'name': comment.author.name,
                 },
                 'has_user_liked': has_user_liked,
             })
@@ -120,7 +164,7 @@ class MomentStatistic(APIView):
 
         return Response(data)
     
-# Взять 20 самых популярных моментов по рейтингу пользователей чтобы потом их закешировать используя memcached
+# пїЅпїЅпїЅпїЅпїЅ 20 пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ memcached
 @method_decorator(cache_page(60 * 15, key_prefix='popular_moments'), name='get')
 class MomentPopular(generics.ListAPIView):
     queryset = Moment.objects.all()[:20]
@@ -131,13 +175,13 @@ class MomentPopular(generics.ListAPIView):
         return super().get(request, *args, **kwargs)
 
     def update_cache(self):
-        # Очищаем кэш по ключу
+        # пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅ
         cache.delete('popular_moments')
 
     def perform_update(self, serializer):
-        # Выполняем обновление объекта в базе данных
+        # пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ
         instance = serializer.save()
-        # Вызываем метод обновления кэша
+        # пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ
         self.update_cache()
 
 #Comment
@@ -263,7 +307,7 @@ class UserFollowingMoments(generics.ListAPIView):
         return moments
 
     def get_serializer_context(self):
-        # Передайте user_id в контексте сериализатора
+        # пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ user_id пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
         return {'user_id': self.kwargs['pk']}
 
 #Tag

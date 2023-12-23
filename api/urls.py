@@ -1,6 +1,6 @@
 from django.urls import path
 from django.views.decorators.cache import cache_page
-from .views import MomentByUser, MomentStatistic, MomentPopular, UserFollow, UserFollowed, UserFollowingMoments, UserLogin, UserView, UserCreate, UserEdit, UserDelete, UserDetail, MomentView, MomentCreate, MomentEdit, MomentDelete, MomentDetail, CommentView, CommentCreate, CommentEdit, CommentDelete, CommentDetail, LikeView, LikeCreate, LikeEdit, LikeDelete, LikeDetail, FollowView, FollowCreate, FollowEdit, FollowDelete, FollowDetail, TagView, TagCreate, TagEdit, TagDelete, TagDetail
+from .views import MomentByUser, MomentStatistic, MomentPopular, UserChangeNameandEmail, UserChangePassword, UserFollow, UserFollowed, UserFollowingMoments, UserLogin, UserView, UserCreate, UserEdit, UserDelete, UserDetail, MomentView, MomentCreate, MomentEdit, MomentDelete, MomentDetail, CommentView, CommentCreate, CommentEdit, CommentDelete, CommentDetail, LikeView, LikeCreate, LikeEdit, LikeDelete, LikeDetail, FollowView, FollowCreate, FollowEdit, FollowDelete, FollowDetail, TagView, TagCreate, TagEdit, TagDelete, TagDetail
 urlpatterns = [
     path('users/', UserView.as_view()),
     path('users/create', UserCreate.as_view()),
@@ -11,6 +11,8 @@ urlpatterns = [
     path('users/followers/<int:pk>/', UserFollowed.as_view()),
     path('users/following/<int:pk>/', UserFollow.as_view()),
     path('users/followingmoments/<int:pk>/', UserFollowingMoments.as_view()),
+    path('users/changepass/<int:pk>/', UserChangePassword.as_view()),
+    path('users/changedata/<int:pk>/', UserChangeNameandEmail.as_view()),
 
     path('moments/', MomentView.as_view()),
     path('moments/create/', MomentCreate.as_view()),
