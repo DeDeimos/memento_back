@@ -88,3 +88,4 @@ class UserFollowingMomentSerializer(serializers.ModelSerializer):
     def get_has_like(self, obj):
         user_id = self.context.get('user_id')
         return Like.objects.filter(author_id=user_id, moment_id=obj.id).exists()
+    

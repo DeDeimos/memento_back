@@ -1,6 +1,6 @@
 from django.urls import path
 from django.views.decorators.cache import cache_page
-from .views import MomentByUser, MomentStatistic, MomentPopular, UserChangeNameandEmail, UserChangePassword, UserFollow, UserFollowed, UserFollowingMoments, UserLogin, UserView, UserCreate, UserEdit, UserDelete, UserDetail, MomentView, MomentCreate, MomentEdit, MomentDelete, MomentDetail, CommentView, CommentCreate, CommentEdit, CommentDelete, CommentDetail, LikeView, LikeCreate, LikeEdit, LikeDelete, LikeDetail, FollowView, FollowCreate, FollowEdit, FollowDelete, FollowDetail, TagView, TagCreate, TagEdit, TagDelete, TagDetail
+from .views import MomentByUser, MomentStatistic, MomentPopular, Search, TagByMoment, UserChangeNameandEmail, UserChangePassword, UserFollow, UserFollowed, UserFollowingMoments, UserLogin, UserView, UserCreate, UserEdit, UserDelete, UserDetail, MomentView, MomentCreate, MomentEdit, MomentDelete, MomentDetail, CommentView, CommentCreate, CommentEdit, CommentDelete, CommentDetail, LikeView, LikeCreate, LikeEdit, LikeDelete, LikeDetail, FollowView, FollowCreate, FollowEdit, FollowDelete, FollowDetail, TagView, TagCreate, TagEdit, TagDelete, TagDetail
 urlpatterns = [
     path('users/', UserView.as_view()),
     path('users/create', UserCreate.as_view()),
@@ -40,7 +40,7 @@ urlpatterns = [
     path('follows/', FollowView.as_view()),
     path('follows/create/', FollowCreate.as_view()),
     path('follows/edit/<int:pk>/', FollowEdit.as_view()),
-    path('follows/delete/<int:pk>/', FollowDelete.as_view()),
+    path('follows/delete/<int:id_follower>/<int:id_following>/', FollowDelete.as_view()),
     path('follows/<int:pk>/', FollowDetail.as_view()),
 
     path('tags/', TagView.as_view()),
@@ -48,4 +48,7 @@ urlpatterns = [
     path('tags/edit/<int:pk>/', TagEdit.as_view()),
     path('tags/delete/<int:pk>/', TagDelete.as_view()),
     path('tags/<int:pk>/', TagDetail.as_view()),
+    path('tags/moment/<int:pk>/', TagByMoment.as_view()),
+    
+    path('search/', Search.as_view()),
 ]

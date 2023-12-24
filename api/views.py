@@ -9,6 +9,7 @@ from django.core.cache import cache
 from django.views.decorators.cache import cache_page
 from django.shortcuts import get_object_or_404
 from django.db import IntegrityError
+from django.db.models import Q
 from django.db.models import Count, Subquery, OuterRef
 from .models import User, Moment, Comment, Like, Follow, Tag
 from .serializers import UserFollowingMomentSerializer, UserFollowingMomentSerializer, MomentStatisticSerializer, UserLoginSerializer, UserRegisterSerializer, UserSerializer, MomentSerializer, CommentSerializer, LikeSerializer, FollowSerializer, TagSerializer
@@ -258,6 +259,7 @@ class FollowView(generics.ListAPIView):
 class FollowCreate(generics.CreateAPIView):
     queryset = Follow.objects.all()
     serializer_class = FollowSerializer
+    
 
 class FollowEdit(generics.RetrieveUpdateAPIView):
     queryset = Follow.objects.all()
@@ -266,6 +268,18 @@ class FollowEdit(generics.RetrieveUpdateAPIView):
 class FollowDelete(generics.DestroyAPIView):
     queryset = Follow.objects.all()
     serializer_class = FollowSerializer
+    
+    def get_object(self):
+        follower_id = self.kwargs.get('id_follower')
+        following_id = self.kwargs.get('id_following')
+        return Follow.objects.get(follower=follower_id, following=following_id)
+    
+    def delete(self, request, *args, **kwargs):
+        instance = self.get_object()
+        self.perform_destroy(instance)
+        return Response({'message': 'Подписка успешно отменена'}, status=status.HTTP_200_OK)
+
+    
 
 class FollowDetail(generics.RetrieveAPIView):
     queryset = Follow.objects.all()
@@ -331,4 +345,26 @@ class TagDetail(generics.RetrieveAPIView):
     queryset = Tag.objects.all()
     serializer_class = TagSerializer
 
-    
+class TagByMoment(generics.ListAPIView):
+    serializer_class = TagSerializer
+
+    def get_queryset(self):
+        queryset = Tag.objects.all()
+        moment_id = self.kwargs['pk']
+        return queryset.filter(moment=moment_id)
+
+#Поиск через query_params моментов по тегу и пользотелей по имени
+class Search(APIView):
+    def get(self, request, format=None):
+        query = request.query_params.get('query')
+        
+        if not query:
+            return Response({'moments': [], 'users': []}, status=status.HTTP_200_OK)
+
+        momentQuerySet = Moment.objects.filter(Q(tag__name__icontains=query)).distinct()
+        userQuerySet = User.objects.filter(name__icontains=query)
+        
+        momentSerializer = MomentSerializer(momentQuerySet, many=True)
+        userSerializer = UserSerializer(userQuerySet, many=True)
+        
+        return Response({'moments': momentSerializer.data, 'users': userSerializer.data}, status=status.HTTP_200_OK)
