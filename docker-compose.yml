@@ -10,6 +10,7 @@ services:
       - ./.env.dev
     depends_on:
       - db
+      - memcached
   db:
     image: postgres:16.0-alpine
     volumes:
@@ -42,6 +43,18 @@ services:
     build: ../memento_front
     ports:
       - "8776:80"
+
+  centrifugo:
+    image: centrifugo/centrifugo:latest
+    command: centrifugo --config=/centrifugo/config.json
+    ports:
+      - "8111:8000"
+    volumes:
+      - ./centrifugo/config.json:/centrifugo/config.json
+  memcached:
+    image: memcached:latest
+    command:
+      - '--memory-limit=1024'
 
 volumes:
   postgresdb-data:

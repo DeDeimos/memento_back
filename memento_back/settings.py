@@ -105,12 +105,12 @@ DATABASES = {
 CACHES = {
     'default': {
         "BACKEND": "django.core.cache.backends.memcached.PyMemcacheCache",
-        'LOCATION': '127.0.0.1:11211',  # Тут надо будет поменять
+        'LOCATION': 'memcached:11211',  # пїЅпїЅпїЅ пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
     }
 }
 
-# Устанавливаем время жизни кеша (в секундах)
-CACHE_TTL = 60 * 15  # Например, 15 минут
+# пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ (пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ)
+CACHE_TTL = 60 * 15  # пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ, 15 пїЅпїЅпїЅпїЅпїЅ
 
 
 # Password validation
@@ -143,10 +143,10 @@ USE_I18N = True
 
 USE_TZ = True
 
-MINIO_ENDPOINT = 'minio:9000'  # ТУТ ИЗМЕНИТЬ
+MINIO_ENDPOINT = 'minio:9000'  # пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
 MINIO_ACCESS_KEY = '123456789'
 MINIO_SECRET_KEY = '987654321'
-MINIO_SECURE = False  # использовать SSL (HTTPS) или нет
+MINIO_SECURE = False  # пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ SSL (HTTPS) пїЅпїЅпїЅ пїЅпїЅпїЅ
 MINIO_BUCKET_NAME = 'memento'
 
 # Static files (CSS, JavaScript, Images)
@@ -160,3 +160,6 @@ MEDIA_ROOT = os.path.join(os.path.dirname(BASE_DIR), 'memento_back')
 # https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+CENTRIFUGO_API_KEY = 'my_api_key'
+CENTRIFUGO_ADDRESS = 'http://185.204.2.233:8111'

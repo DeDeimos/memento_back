@@ -13,6 +13,11 @@ from django.db.models import Q
 from django.db.models import Count, Subquery, OuterRef
 from .models import User, Moment, Comment, Like, Follow, Tag
 from .serializers import UserFollowingMomentSerializer, UserFollowingMomentSerializer, MomentStatisticSerializer, UserLoginSerializer, UserRegisterSerializer, UserSerializer, MomentSerializer, CommentSerializer, LikeSerializer, FollowSerializer, TagSerializer
+from cent import Client
+from django.http import JsonResponse
+from rest_framework.pagination import LimitOffsetPagination
+# from django.apps import AppConfig
+# from .signals import send_subscription_notification
 
 # Create your views here.
 #User
@@ -96,6 +101,24 @@ class UserChangeNameandEmail(APIView):
             return Response({'error': 'User not found.'}, status=status.HTTP_404_NOT_FOUND)
         except Exception:
             return Response({'error': 'An unexpected error occurred.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+class UserChangeProfilePhoto(APIView):
+    def post(self, request, *args, **kwargs):
+        user_id = self.kwargs.get('pk')
+        new_profile_photo = self.request.data.get('new_profile_photo')
+
+        # Проверка, что user_id и new_profile_photo переданы
+        if not user_id or not new_profile_photo:
+            return Response({'error': 'User ID and new profile photo are required.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        user = get_object_or_404(User, pk=user_id)
+
+        # Изменение профильной фотографии
+        user.profilephoto = new_profile_photo
+        user.save()
+
+        return Response({'message': 'Profile photo changed successfully.'}, status=status.HTTP_200_OK)
+    
 
 #Moment
 class MomentView(generics.ListAPIView):
@@ -115,8 +138,24 @@ class MomentDelete(generics.DestroyAPIView):
     serializer_class = MomentSerializer
 
 class MomentDetail(generics.RetrieveAPIView):
-    queryset = Moment.objects.all()
-    serializer_class = MomentSerializer
+    serializer_class = UserFollowingMomentSerializer
+
+    def get_object(self):
+        user_id = self.kwargs['user_id']
+        moment_id = self.kwargs['moment_id']
+        
+        # Проверка существования пользователя и момента
+        if not Follow.objects.filter(follower=user_id).exists():
+            return None
+
+        following_users = Follow.objects.filter(follower=user_id).values('following')
+        moment = Moment.objects.filter(pk=moment_id, author__in=following_users).first()
+
+        return moment
+
+    def get_serializer_context(self):
+        # Передача user_id и других контекстных данных сериализатору
+        return {'user_id': self.kwargs['user_id']}
 
 class MomentByUser(generics.ListAPIView):
     serializer_class = MomentSerializer
@@ -140,8 +179,18 @@ class MomentStatistic(APIView):
         if not moment:
             return Response({'error': 'Moment not found'}, status=404)
 
-        like_count = Like.objects.filter(moment=moment).count()
-        recent_comments = Comment.objects.filter(moment=moment).order_by('-created_at')[:2]
+        # Получаем значение параметра comment_count из запроса
+        comment_count_param = request.query_params.get('comment_count')
+        
+        if comment_count_param is not None:
+            try:
+                comment_count = int(comment_count_param)
+            except ValueError:
+                return Response({'error': 'Invalid comment_count value. Must be an integer.'}, status=400)
+
+            recent_comments = Comment.objects.filter(moment=moment).order_by('-created_at')[:comment_count]
+        else:
+            recent_comments = Comment.objects.filter(moment=moment).order_by('-created_at')
 
         comment_data = []
         for comment in recent_comments:
@@ -159,30 +208,51 @@ class MomentStatistic(APIView):
             })
 
         data = {
-            'like_count': like_count,
+            'like_count': Like.objects.filter(moment=moment).count(),
             'recent_comments': comment_data,
         }
 
         return Response(data)
     
 # ����� 20 ����� ���������� �������� �� �������� ������������� ����� ����� �� ������������ ��������� memcached
-@method_decorator(cache_page(60 * 15, key_prefix='popular_moments'), name='get')
-class MomentPopular(generics.ListAPIView):
-    queryset = Moment.objects.all()[:20]
-    serializer_class = MomentSerializer
+# @method_decorator(cache_page(60 * 15, key_prefix='popular_moments'), name='get')
+# class MomentPopular(generics.ListAPIView):
+#     queryset = Moment.objects.all()[:20]
+#     serializer_class = MomentSerializer
     
-    @method_decorator(cache_page(60 * 15, key_prefix='popular_moments'), name='get')
-    def get(self, request, *args, **kwargs):
-        return super().get(request, *args, **kwargs)
+#     @method_decorator(cache_page(60 * 15, key_prefix='popular_moments'), name='get')
+#     def get(self, request, *args, **kwargs):
+#         return super().get(request, *args, **kwargs)
+
+#     def update_cache(self):
+#         # ������� ��� �� �����
+#         cache.delete('popular_moments')
+
+#     def perform_update(self, serializer):
+#         # ��������� ���������� ������� � ���� ������
+#         instance = serializer.save()
+#         # �������� ����� ���������� ����
+#         self.update_cache()
+
+class MomentPopular(generics.ListAPIView):
+    pagination_class = LimitOffsetPagination
+
+    def get_queryset(self):
+        # Ваш текущий код для получения моментов
+        moments = Moment.objects.all()[:20]
+        return moments
+
+    def get_serializer_class(self):
+        # Используйте ваш пользовательский сериализатор здесь
+        return UserFollowingMomentSerializer
 
     def update_cache(self):
-        # ������� ��� �� �����
+        # Ваш текущий код для обновления кеша
         cache.delete('popular_moments')
 
     def perform_update(self, serializer):
-        # ��������� ���������� ������� � ���� ������
+        # Ваш текущий код для обновления момента
         instance = serializer.save()
-        # �������� ����� ���������� ����
         self.update_cache()
 
 #Comment
@@ -260,6 +330,14 @@ class FollowCreate(generics.CreateAPIView):
     queryset = Follow.objects.all()
     serializer_class = FollowSerializer
     
+# class FollowCreate(generics.CreateAPIView):
+#     queryset = Follow.objects.all()
+#     serializer_class = FollowSerializer
+
+#     def perform_create(self, serializer):
+#         instance = serializer.save()
+#         send_subscription_notification(instance.follower.id, instance.following.id)
+
 
 class FollowEdit(generics.RetrieveUpdateAPIView):
     queryset = Follow.objects.all()
@@ -310,19 +388,40 @@ class UserFollowed(generics.ListAPIView):
 #         queryset = Moment.objects.filter(author__in=following_users)
 #         return queryset[::-1]
 
+# class UserFollowingMoments(generics.ListAPIView):
+#     serializer_class = UserFollowingMomentSerializer
+
+#     def get_queryset(self):
+#         user_id = self.kwargs['pk']
+#         following_users = Follow.objects.filter(follower=user_id).values('following')
+#         moments = Moment.objects.filter(author__in=following_users).order_by('-created_at')
+
+#         return moments
+
+#     def get_serializer_context(self):
+#         # ��������� user_id � ��������� �������������
+#         return {'user_id': self.kwargs['pk']}
+
 class UserFollowingMoments(generics.ListAPIView):
     serializer_class = UserFollowingMomentSerializer
 
     def get_queryset(self):
         user_id = self.kwargs['pk']
         following_users = Follow.objects.filter(follower=user_id).values('following')
-        moments = Moment.objects.filter(author__in=following_users).order_by('-created_at')
+        
+        # Получение параметров limit и offset из запроса
+        limit = int(self.request.query_params.get('limit', 10))
+        offset = int(self.request.query_params.get('offset', 0))
+
+        # Применение limit и offset к запросу
+        moments = Moment.objects.filter(author__in=following_users).order_by('-created_at')[offset:offset + limit]
 
         return moments
 
     def get_serializer_context(self):
-        # ��������� user_id � ��������� �������������
+        # Передача user_id и других контекстных данных сериализатору
         return {'user_id': self.kwargs['pk']}
+
 
 #Tag
 class TagView(generics.ListAPIView):
@@ -368,3 +467,45 @@ class Search(APIView):
         userSerializer = UserSerializer(userQuerySet, many=True)
         
         return Response({'moments': momentSerializer.data, 'users': userSerializer.data}, status=status.HTTP_200_OK)
+    
+cent = Client(address="185.204.2.233:8111")
+
+def send_like_notification(user_id, moment_id, recipient_user_id):
+    channel_name = f'like_channel_{recipient_user_id}'
+    data = {
+        'event': 'like',
+        'user_id': user_id,
+        'moment_id': moment_id,
+    }
+    cent.publish(channel_name, data)
+
+# def send_subscription_notification(follower_id, following_id):
+#     channel_name = f'subscription_channel_{following_id}'
+#     data = {
+#         'event': 'subscription',
+#         'follower_id': follower_id,
+#         'following_id': following_id,
+#         'message': f'Пользователь {follower_id} подписался на вас.',
+#     }
+#     cent.publish(channel_name, data)
+#     notifications_channel_name = 'notifications'
+#     cent.publish(notifications_channel_name, data)
+
+# def like_view(request, moment_id, recipient_user_id):
+#     # Обработка лайка
+#     # ...
+#     send_like_notification(request.user.id, moment_id, recipient_user_id)
+#     return JsonResponse({'status': 'success'})
+
+# def subscription_view(request, following_id):
+#     # Обработка подписки
+#     # ...
+#     send_subscription_notification(request.user.id, following_id)
+#     return JsonResponse({'status': 'success'})
+
+# class YourAppConfig(AppConfig):
+#     default_auto_field = 'django.db.models.BigAutoField'
+#     name = 'your_app'
+
+#     def ready(self):
+#         import api.signals

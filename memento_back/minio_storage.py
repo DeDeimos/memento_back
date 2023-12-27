@@ -32,7 +32,8 @@ class MinioStorage(Storage):
 
     def url(self, name):
         # Generate a public URL for the file
-        return self.client.presigned_get_object(self.bucket_name, name)
+        client = self.client.presigned_get_object(self.bucket_name, name)
+        return client.replace("minio:9000", "185.204.2.233:9999").split('?')[0]
     
     def exists(self, name: str) -> bool:
         try:
